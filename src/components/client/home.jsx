@@ -6,10 +6,13 @@ import {
   Popup,
   useMap
 } from 'react-leaflet';
+import { Link } from 'react-router-dom';
+
 import L from 'leaflet';
 import 'leaflet-routing-machine';
 import { useEffect, useRef, useState } from 'react';
 import 'leaflet/dist/leaflet.css';
+import './home.css'; // 👈 Add your styles here
 
 // Fix marker icon path issue in React
 delete L.Icon.Default.prototype._getIconUrl;
@@ -67,8 +70,19 @@ function Routing({ userPosition, destination }) {
 
   return null;
 }
+function FlyToUserLocation({ userPosition }) {
+  const map = useMap();
 
-export default function MapPage() {
+  useEffect(() => {
+    if (userPosition) {
+      map.flyTo(userPosition, 16); // Zoom level can be adjusted
+    }
+  }, [userPosition, map]);
+
+  return null;
+}
+
+export default function Home() {
   const [query, setQuery] = useState('');
   const [userPosition, setUserPosition] = useState(null);
   const [destination, setDestination] = useState(null);
@@ -87,6 +101,13 @@ export default function MapPage() {
   const filteredSpots = parkingSpots.filter((spot) =>
     spot.org_name.toLowerCase().includes(query.toLowerCase())
   );
+
+  // 🔴 Custom pulsing icon for user location
+  const pulseIcon = L.divIcon({
+    className: 'pulse-marker',
+    iconSize: [20, 20],
+    iconAnchor: [10, 10],
+  });
 
   return (
     <div style={{ display: 'flex' }}>
@@ -121,38 +142,51 @@ export default function MapPage() {
 
       {/* 🗺️ Map */}
       <div style={{ flexGrow: 1, height: '100vh' }}>
-        <MapContainer center={[9.03, 38.74]} zoom={13} style={{ height: '100%', width: '100%' }}>
-          <TileLayer
-            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-            attribution="&copy; OpenStreetMap contributors"
-          />
+       <MapContainer center={[9.03, 38.74]} zoom={15} style={{ height: '100%', width: '100%' }}>
+  <TileLayer
+    url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+    attribution="&copy; OpenStreetMap contributors"
+  />
 
-          {/* User location marker */}
-          {userPosition && (
-            <Marker position={userPosition}>
-              <Popup>You are here</Popup>
-            </Marker>
-          )}
+  {userPosition && (
+    <Marker position={userPosition} icon={pulseIcon}>
+      <Popup>You are here</Popup>
+    </Marker>
+  )}
 
-          {/* Parking spots */}
-          {filteredSpots.map((spot) => (
-            <Marker key={spot.id} position={[spot.latitude, spot.longitude]}>
-              <Popup>
-                <strong>{spot.org_name}</strong><br />
-                Price: ${spot.price}<br />
-                Info: {spot.info}<br />
-                <button onClick={() => setDestination([spot.latitude, spot.longitude])}>
-                  Want to Go
-                </button>
-              </Popup>
-            </Marker>
-          ))}
+  {filteredSpots.map((spot) => (
+    <Marker key={spot.id} position={[spot.latitude, spot.longitude]}>
+   <Popup>
+  <strong>{spot.org_name}</strong><br />
+  Price: ${spot.price}<br />
+  Info: {spot.info}<br />
 
-          {/* Routing */}
-          {userPosition && destination && (
-            <Routing userPosition={userPosition} destination={destination} />
-          )}
-        </MapContainer>
+  <button
+    onClick={(e) => {
+      e.stopPropagation();  // prevent popup closing
+      setDestination([spot.latitude, spot.longitude]);
+    }}
+  >
+    Want to Go
+  </button>{' '}
+
+<Link to={`/reserve/${spot.id}`} onClick={e => e.stopPropagation()}>
+  <button>Reserve</button>
+</Link>
+
+</Popup>
+
+    </Marker>
+  ))}
+
+  {userPosition && destination && (
+    <Routing userPosition={userPosition} destination={destination} />
+  )}
+
+  {/* 👇 Auto-zoom to user's location */}
+  {userPosition && <FlyToUserLocation userPosition={userPosition} />}
+</MapContainer>
+
       </div>
     </div>
   );
